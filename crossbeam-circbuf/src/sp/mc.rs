@@ -24,7 +24,7 @@
 /// }).join().unwrap();
 /// ```
 pub mod bounded {
-    use sp::internal;
+    use super::super::internal;
     pub use TryRecv;
 
     /// A bounded SPMC queue.
@@ -53,7 +53,7 @@ pub mod bounded {
             }
         }
 
-        /// Sends a value to the queue.
+        /// Attempts to send a value to the queue.
         ///
         /// Returns `Ok(())` if the value is successfully sent; or `Err(value)` if the buffer is
         /// full and we failed to send `value`.
@@ -202,7 +202,7 @@ pub mod bounded {
 /// }).join().unwrap();
 /// ```
 pub mod unbounded {
-    use sp::internal;
+    use super::super::internal;
     pub use TryRecv;
 
     /// an unbounded SPMC queue.
@@ -247,7 +247,7 @@ pub mod unbounded {
             }
         }
 
-        /// Sends a value to the queue.
+        /// Attempts to send a value to the queue.
         ///
         /// # Examples
         ///

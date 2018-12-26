@@ -6,7 +6,14 @@ use std::mem;
 /// A slot in buffer.
 #[derive(Debug)]
 pub struct Slot<T> {
+    /// The index of this slot's data.
+    ///
+    /// An index consists of an offset into the buffer and a lap, but packed into a single `usize`.
+    /// The lower bits represent the offset, while the upper bits represent the lap.  For example if
+    /// the buffer capacity is 4, then index 6 represents offset 2 in lap 1.
     index: AtomicUsize,
+
+    /// The value in this slot.
     data: UnsafeCell<mem::ManuallyDrop<T>>,
 }
 
@@ -16,6 +23,11 @@ pub struct Slot<T> {
 #[derive(Debug)]
 pub struct Buffer<T> {
     /// Pointer to the allocated memory.
+    ///
+    /// The allocated memory exhibit data races by `read`, `write`, `read_index`, and `write_index`,
+    /// which technically invoke undefined behavior.  We should be using relaxed accesses, but that
+    /// would cost too much performance.  Hence, as a HACK, we use volatile accesses instead.
+    /// Experimental evidence shows that this works.
     ptr: *mut Slot<T>,
 
     /// Capacity of the buffer. Always a power of two.
@@ -68,10 +80,6 @@ impl<T> Buffer<T> {
     /// Reads a value from the specified `index`.
     ///
     /// Returns `Some(v)` if `v` is at `index`; or `None` if there's no valid value for `index`.
-    ///
-    /// Using this concurrently with a `write` is technically speaking UB due to data races.  We
-    /// should be using relaxed accesses, but that would cost too much performance.  Hence, as a
-    /// HACK, we use volatile accesses instead.  Experimental evidence shows that this works.
     pub unsafe fn read(&self, index: usize) -> Option<mem::ManuallyDrop<T>> {
         let slot = self.at(index);
 
@@ -90,10 +98,6 @@ impl<T> Buffer<T> {
     /// Reads a value from the specified `index` without checking the index.
     ///
     /// Returns the value at `index` regardless or whether it's valid or not.
-    ///
-    /// Using this concurrently with a `write` is technically speaking UB due to data races.  We
-    /// should be using relaxed accesses, but that would cost too much performance.  Hence, as a
-    /// HACK, we use volatile accesses instead.  Experimental evidence shows that this works.
     pub unsafe fn read_unchecked(&self, index: usize) -> mem::ManuallyDrop<T> {
         let slot = self.at(index);
 
@@ -102,11 +106,6 @@ impl<T> Buffer<T> {
     }
 
     /// Writes `value` into the specified `index`.
-    ///
-    /// Using this concurrently with another `read` or `write` is technically
-    /// speaking UB due to data races.  We should be using relaxed accesses, but
-    /// that would cost too much performance.  Hence, as a HACK, we use volatile
-    /// accesses instead.  Experimental evidence shows that this works.
     pub unsafe fn write(&self, index: usize, value: T) {
         let slot = self.at(index);
 
@@ -115,5 +114,23 @@ impl<T> Buffer<T> {
 
         // Writes the index with `Release`.
         (*slot).index.store(index, Ordering::Release);
+    }
+
+    /// Reads the index from the specified slot.
+    pub unsafe fn read_index(&self, offset: usize, ord: Ordering) -> usize {
+        let slot = self.at(offset);
+        (*slot).index.load(ord)
+    }
+
+    /// Writes the specified `index` in the slot.
+    pub unsafe fn write_index(&self, index: usize, ord: Ordering) {
+        let slot = self.at(index);
+        (*slot).index.store(index, ord);
+    }
+
+    /// Reads the value from the specified slot.
+    pub unsafe fn read_value(&self, offset: usize) -> mem::ManuallyDrop<T> {
+        let slot = self.at(offset);
+        (*slot).data.get().read_volatile()
     }
 }

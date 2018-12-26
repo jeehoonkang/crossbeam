@@ -16,6 +16,7 @@ use buffer::Buffer;
 pub use TryRecv;
 
 /// Internal data shared among a circular buffer and its receivers.
+#[derive(Debug)]
 struct Inner<T> {
     /// The rx index.
     rx: CachePadded<AtomicUsize>,
@@ -50,11 +51,9 @@ impl<T> Drop for Inner<T> {
             let buffer = self.buffer.load(Ordering::Relaxed, epoch::unprotected());
 
             // Drops the values from rx to tx in the buffer.
-            let mut i = rx;
-            while i != tx {
-                let mut value = buffer.deref().read_unchecked(i);
+            for i in 0..tx.wrapping_sub(rx) {
+                let mut value = buffer.deref().read_unchecked(rx.wrapping_add(i));
                 ManuallyDrop::drop(&mut value);
-                i = i.wrapping_add(1);
             }
 
             // Free the memory allocated by the buffer.

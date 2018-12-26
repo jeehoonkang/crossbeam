@@ -57,7 +57,7 @@ pub mod bounded {
     }
 
     impl<T> Sender<T> {
-        /// Sends a value to the queue.
+        /// Attempts to send a value to the queue.
         ///
         /// Returns `Ok(())` if the value is successfully sent; or `Err(value)` if the buffer is
         /// full and we failed to send `value`.
@@ -173,7 +173,7 @@ pub mod unbounded {
     }
 
     impl<T> Sender<T> {
-        /// Sends a value to the queue.
+        /// Attempts to send a value to the queue.
         ///
         /// # Examples
         ///
