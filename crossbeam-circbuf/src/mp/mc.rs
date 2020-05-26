@@ -24,10 +24,10 @@
 /// assert_eq!(r.recv(), Some('b'));
 /// ```
 pub mod bounded {
-    use std::sync::atomic::Ordering;
-    use std::sync::atomic::AtomicUsize;
     use std::marker::PhantomData;
     use std::mem::ManuallyDrop;
+    use std::sync::atomic::AtomicUsize;
+    use std::sync::atomic::Ordering;
     use utils::CachePadded;
 
     use buffer::Buffer;
@@ -135,7 +135,7 @@ pub mod bounded {
                         unsafe { self.buffer.write(index.wrapping_add(self.lap()), value) };
                         return Ok(());
                     }
-                    // But if the slot lags one lap behind the tail...
+                // But if the slot lags one lap behind the tail...
                 } else if index.wrapping_add(self.lap()) == tail {
                     let head = self.head.load(Ordering::Acquire);
 
@@ -179,7 +179,10 @@ pub mod bounded {
                     {
                         // Reads the value from the slot and update the stamp.
                         let value = unsafe { self.buffer.read_value(index) };
-                        unsafe { self.buffer.write_index(index.wrapping_add(self.lap()), Ordering::Release) };
+                        unsafe {
+                            self.buffer
+                                .write_index(index.wrapping_add(self.lap()), Ordering::Release)
+                        };
                         return Some(ManuallyDrop::into_inner(value));
                     }
                 // But if the slot lags one lap behind the head...
@@ -194,7 +197,7 @@ pub mod bounded {
                 }
             }
         }
-        
+
         /// Returns `true` if the queue is empty.
         ///
         /// Inaccurate in the presence of concurrent method invocations.
@@ -208,21 +211,21 @@ pub mod bounded {
             // when the queue was not empty, so it is safe to just return `false`.
             tail.wrapping_add(self.lap()) == head
         }
-        
+
         /// Returns `true` if the queue is full.
         ///
         /// Inaccurate in the presence of concurrent method invocations.
         pub fn is_full(&self) -> bool {
             let tail = self.tail.load(Ordering::Relaxed);
             let head = self.head.load(Ordering::Relaxed);
-            
+
             // Is the head lagging one lap behind tail?
             //
             // Note: If the tail changes just before we load the head, that means there was a moment
             // when the queue was not full, so it is safe to just return `false`.
             head.wrapping_add(self.lap()) == tail
         }
-        
+
         /// Returns the current number of elements inside the queue.
         ///
         /// Inaccurate in the presence of concurrent method invocations.
@@ -233,7 +236,7 @@ pub mod bounded {
 
             let hix = head & (self.lap() - 1);
             let tix = tail & (self.lap() - 1);
-            
+
             if hix < tix {
                 tix - hix
             } else if hix > tix {
@@ -250,7 +253,7 @@ pub mod bounded {
         fn drop(&mut self) {
             // Get the index of the head.
             let hix = self.head.load(Ordering::Relaxed) & (self.lap() - 1);
-            
+
             // Loop over all slots that hold a message and drop them.
             for i in 0..self.len() {
                 // Compute the index of the next slot holding a message.

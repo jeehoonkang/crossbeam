@@ -677,7 +677,8 @@ impl<T> Receiver<T> {
                 rx.wrapping_add(num),
                 Ordering::Release,
                 Ordering::Relaxed,
-            ).is_err()
+            )
+            .is_err()
         {
             // We didn't receive the values.
             return TryRecv::Retry;
@@ -886,7 +887,8 @@ mod tests {
                         }
                     }
                 })
-            }).collect::<Vec<_>>();
+            })
+            .collect::<Vec<_>>();
 
         while remaining.load(SeqCst) > 0 {
             if let TryRecv::Data(_) = cb.try_recv() {
@@ -919,7 +921,8 @@ mod tests {
                         }
                     }
                 })
-            }).collect::<Vec<_>>();
+            })
+            .collect::<Vec<_>>();
 
         let mut rng = rand::thread_rng();
         let mut expected = 0;
@@ -982,7 +985,8 @@ mod tests {
                 };
 
                 (t, hits)
-            }).unzip();
+            })
+            .unzip();
 
         let mut rng = rand::thread_rng();
         let mut my_hits = 0;
@@ -1040,7 +1044,8 @@ mod tests {
                         }
                     }
                 })
-            }).collect::<Vec<_>>();
+            })
+            .collect::<Vec<_>>();
 
         for _ in 0..1000 {
             if let TryRecv::Data(_) = cb.try_recv() {

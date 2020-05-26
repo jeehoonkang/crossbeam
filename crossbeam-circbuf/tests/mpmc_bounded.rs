@@ -108,7 +108,8 @@ fn len() {
                 assert!(len <= CAP);
             }
         });
-    }).unwrap();
+    })
+    .unwrap();
     assert_eq!(q.len(), 0);
 }
 
@@ -136,7 +137,8 @@ fn spsc() {
                 while q.send(i).is_err() {}
             }
         });
-    }).unwrap();
+    })
+    .unwrap();
 }
 
 #[test]
@@ -167,7 +169,8 @@ fn mpmc() {
                 }
             });
         }
-    }).unwrap();
+    })
+    .unwrap();
 
     for c in v {
         assert_eq!(c.load(Ordering::SeqCst), THREADS);
@@ -212,7 +215,8 @@ fn drops() {
                     }
                 }
             });
-        }).unwrap();
+        })
+        .unwrap();
 
         for _ in 0..additional {
             q.send(DropCounter).unwrap();
@@ -240,5 +244,6 @@ fn linearizable() {
                 }
             });
         }
-    }).unwrap();
+    })
+    .unwrap();
 }

@@ -1,7 +1,7 @@
 use std::cell::UnsafeCell;
+use std::mem;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
-use std::mem;
 
 /// A slot in buffer.
 #[derive(Debug)]
@@ -60,7 +60,7 @@ impl<T> Buffer<T> {
 
 impl<T> Drop for Buffer<T> {
     fn drop(&mut self) {
-        unsafe { 
+        unsafe {
             drop(Vec::from_raw_parts(self.ptr, 0, self.cap));
         }
     }
@@ -110,7 +110,10 @@ impl<T> Buffer<T> {
         let slot = self.at(index);
 
         // Writes the value.
-        (*slot).data.get().write_volatile(mem::ManuallyDrop::new(value));
+        (*slot)
+            .data
+            .get()
+            .write_volatile(mem::ManuallyDrop::new(value));
 
         // Writes the index with `Release`.
         (*slot).index.store(index, Ordering::Release);

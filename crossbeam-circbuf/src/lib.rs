@@ -13,13 +13,13 @@ extern crate crossbeam_utils as utils;
 mod buffer;
 
 #[doc(hidden)] // for doc-tests
-pub mod sp;
-#[doc(hidden)] // for doc-tests
 pub mod mp;
+#[doc(hidden)] // for doc-tests
+pub mod sp;
 
+pub use mp::mc as mpmc;
 pub use sp::mc as spmc;
 pub use sp::sc as spsc;
-pub use mp::mc as mpmc;
 
 /// The return type for `try_recv` methods.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
