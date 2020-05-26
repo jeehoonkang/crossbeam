@@ -9,7 +9,7 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-use epoch::{self, Atomic, Owned};
+use epoch::{self, Atomic};
 use utils::CachePadded;
 
 use buffer::Buffer;
@@ -33,10 +33,12 @@ impl<T> Inner<T> {
     fn new(cap: usize) -> Self {
         debug_assert_eq!(cap, cap.next_power_of_two());
 
+        let buffer = Buffer::new(cap);
+
         Inner {
             rx: CachePadded::new(AtomicUsize::new(0)),
             tx: CachePadded::new(AtomicUsize::new(0)),
-            buffer: Atomic::new(Buffer::new(cap)),
+            buffer: buffer.into(),
         }
     }
 }
@@ -183,7 +185,7 @@ impl<T> CircBuf<T> {
 
             // Calculates the length and the capacity of the circular buffer.
             let len = tx.wrapping_sub(rx_lb) as isize;
-            let cap = buffer.deref().cap();
+            let cap = buffer.deref().len();
 
             // If the circular buffer is full, grows the underlying buffer.
             if len >= cap as isize {
@@ -250,7 +252,7 @@ impl<T> CircBuf<T> {
             let value = buffer.deref().read_unchecked(rx);
 
             // Shrinks the buffer if `len - 1` is less than one fourth of `self.min_cap`.
-            let cap = buffer.deref().cap();
+            let cap = buffer.deref().len();
             let resize = if len <= cap as isize / 4 {
                 Some(cap)
             } else {
@@ -288,7 +290,7 @@ impl<T> CircBuf<T> {
 }
 
 impl<T> fmt::Debug for CircBuf<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "CircBuf {{ ... }}")
     }
 }
@@ -498,11 +500,10 @@ impl<T> DynamicCircBuf<T> {
             i = i.wrapping_add(1);
         }
 
-        let guard = &epoch::pin();
-        let new = Owned::from(new).into_shared(guard);
-
         // Stores the new buffer.
         inner.buffer.store(new, Ordering::Release);
+
+        let guard = epoch::pin();
 
         // Destroys the old buffer later.
         guard.defer_destroy(buffer);
@@ -522,7 +523,7 @@ impl<T> Default for DynamicCircBuf<T> {
 }
 
 impl<T> fmt::Debug for DynamicCircBuf<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "DynamicCircBuf {{ ... }}")
     }
 }
@@ -753,7 +754,7 @@ impl<T> Clone for Receiver<T> {
 }
 
 impl<T> fmt::Debug for Receiver<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Receiver {{ ... }}")
     }
 }

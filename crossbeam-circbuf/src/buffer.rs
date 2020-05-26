@@ -1,7 +1,9 @@
-use std::cell::UnsafeCell;
-use std::mem;
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering;
+use core::cell::UnsafeCell;
+use core::mem::{self, ManuallyDrop, MaybeUninit};
+use core::ops::{Deref, DerefMut};
+use core::sync::atomic::{AtomicUsize, Ordering};
+
+use epoch::{Owned, Pointable};
 
 /// A slot in buffer.
 #[derive(Debug)]
@@ -14,67 +16,86 @@ pub struct Slot<T> {
     index: AtomicUsize,
 
     /// The value in this slot.
-    data: UnsafeCell<mem::ManuallyDrop<T>>,
-}
-
-/// A buffer that holds values in a queue.
-///
-/// This is just a buffer---dropping an instance of this struct will *not* drop the internal values.
-#[derive(Debug)]
-pub struct Buffer<T> {
-    /// Pointer to the allocated memory.
     ///
     /// The allocated memory exhibit data races by `read`, `write`, `read_index`, and `write_index`,
     /// which technically invoke undefined behavior.  We should be using relaxed accesses, but that
     /// would cost too much performance.  Hence, as a HACK, we use volatile accesses instead.
     /// Experimental evidence shows that this works.
-    ptr: *mut Slot<T>,
+    data: UnsafeCell<ManuallyDrop<T>>,
+}
 
-    /// Capacity of the buffer. Always a power of two.
-    cap: usize,
+/// A buffer that holds values in a queue.
+///
+/// This is just a buffer---dropping an instance of this struct will *not* drop the internal values.
+pub struct Buffer<T> {
+    inner: [MaybeUninit<Slot<T>>],
+}
+
+impl<T> Pointable for Buffer<T> {
+    const ALIGN: usize = <[MaybeUninit<Slot<T>>] as Pointable>::ALIGN;
+
+    type Init = <[MaybeUninit<Slot<T>>] as Pointable>::Init;
+
+    unsafe fn init(size: Self::Init) -> usize {
+        <[MaybeUninit<Slot<T>>] as Pointable>::init(size)
+    }
+
+    unsafe fn deref<'a>(ptr: usize) -> &'a Self {
+        mem::transmute(<[MaybeUninit<Slot<T>>] as Pointable>::deref(ptr))
+    }
+
+    unsafe fn deref_mut<'a>(ptr: usize) -> &'a mut Self {
+        mem::transmute(<[MaybeUninit<Slot<T>>] as Pointable>::deref_mut(ptr))
+    }
+
+    unsafe fn drop(ptr: usize) {
+        <[MaybeUninit<Slot<T>>] as Pointable>::drop(ptr)
+    }
+}
+
+impl<T> Deref for Buffer<T> {
+    type Target = [MaybeUninit<Slot<T>>];
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl<T> DerefMut for Buffer<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
 }
 
 impl<T> Buffer<T> {
     /// Allocates a new buffer with the specified capacity.
-    pub fn new(cap: usize) -> Self {
-        // `cap` should be a power of two.
-        debug_assert_eq!(cap, cap.next_power_of_two());
+    pub fn new(size: usize) -> Owned<Self> {
+        // `size` should be a power of two.
+        debug_assert_eq!(size, size.next_power_of_two());
 
-        // Creates a buffer.
-        let mut v = Vec::<Slot<T>>::with_capacity(cap);
-        let ptr = v.as_mut_ptr();
-        mem::forget(v);
+        let mut buffer = Owned::<Self>::init(size);
 
         // Marks all entries invalid.
-        unsafe {
-            for i in 0..cap {
-                // Index `i + 1` for the `i`-th entry is invalid; only the indexes of the form `i +
-                // N * cap` is valid.
-                (*ptr.offset(i as isize)).index = AtomicUsize::new(i + 1);
+        for (i, slot) in buffer.deref_mut().iter_mut().enumerate() {
+            // Index `i + 1` for the `i`-th entry is invalid; only the indexes of the form `i + N *
+            // size` is valid.
+            unsafe {
+                (*slot.as_ptr()).index.store(i + 1, Ordering::Relaxed);
             }
         }
 
-        Buffer { ptr, cap }
+        buffer
     }
-}
 
-impl<T> Drop for Buffer<T> {
-    fn drop(&mut self) {
-        unsafe {
-            drop(Vec::from_raw_parts(self.ptr, 0, self.cap));
-        }
-    }
-}
-
-impl<T> Buffer<T> {
+    /// Returns the capacity of the buffer.
     pub fn cap(&self) -> usize {
-        self.cap
+        self.inner.len()
     }
 
     /// Returns a pointer to the slot at the specified `index`.
     pub unsafe fn at(&self, index: usize) -> *mut Slot<T> {
         // `array.size()` is always a power of two.
-        self.ptr.offset((index & (self.cap - 1)) as isize)
+        self.inner.get_unchecked(index & (self.cap() - 1)) as *const _ as *mut _
     }
 
     /// Reads a value from the specified `index`.

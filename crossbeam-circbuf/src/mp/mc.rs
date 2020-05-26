@@ -24,6 +24,7 @@
 /// assert_eq!(r.recv(), Some('b'));
 /// ```
 pub mod bounded {
+    use epoch::{unprotected, Atomic};
     use std::marker::PhantomData;
     use std::mem::ManuallyDrop;
     use std::sync::atomic::AtomicUsize;
@@ -47,10 +48,13 @@ pub mod bounded {
         tail: CachePadded<AtomicUsize>,
 
         /// The underlying buffer.
-        buffer: Buffer<T>,
+        buffer: Atomic<Buffer<T>>,
 
         /// The capacity of the queue.
         cap: usize,
+
+        /// the size of one lap.
+        lap: usize,
 
         /// Indicates that dropping an `ArrayQueue<T>` may drop values of type `T`.
         _marker: PhantomData<T>,
@@ -71,13 +75,14 @@ pub mod bounded {
             let tail = 0;
 
             // Allocate a buffer of `lap` slots.
-            let buffer = Buffer::new(lap);
+            let buffer = Atomic::<Buffer<T>>::init(lap);
 
             // Initialize stamps in the slots.
-            for i in 0..lap {
-                unsafe {
+            unsafe {
+                let buffer_ref = buffer.load(Ordering::Relaxed, unprotected());
+                for i in 0..lap {
                     // Set the index to `{ lap: 0, offset: i }`.
-                    buffer.write_index(i, Ordering::Relaxed);
+                    buffer_ref.deref().write_index(i, Ordering::Relaxed);
                 }
             }
 
@@ -86,6 +91,7 @@ pub mod bounded {
                 tail: CachePadded::new(AtomicUsize::new(tail)),
                 buffer,
                 cap,
+                lap,
                 _marker: PhantomData,
             }
         }
@@ -93,7 +99,7 @@ pub mod bounded {
         /// Returns the size of one lap.
         #[inline]
         pub fn lap(&self) -> usize {
-            self.buffer.cap()
+            self.lap
         }
 
         /// Returns the capacity of the queue.
@@ -111,7 +117,8 @@ pub mod bounded {
                 let lap = tail & !(self.lap() - 1);
 
                 // Inspects the corresponding slot.
-                let index = unsafe { self.buffer.read_index(offset, Ordering::Acquire) };
+                let buffer_ref = unsafe { self.buffer.load(Ordering::Relaxed, unprotected()) };
+                let index = unsafe { buffer_ref.deref().read_index(offset, Ordering::Acquire) };
 
                 // If the tail and the stamp match, we may attempt to push.
                 if tail == index {
@@ -132,7 +139,11 @@ pub mod bounded {
                         .is_ok()
                     {
                         // Writes the value into the slot and update the stamp.
-                        unsafe { self.buffer.write(index.wrapping_add(self.lap()), value) };
+                        unsafe {
+                            buffer_ref
+                                .deref()
+                                .write(index.wrapping_add(self.lap()), value)
+                        };
                         return Ok(());
                     }
                 // But if the slot lags one lap behind the tail...
@@ -157,7 +168,8 @@ pub mod bounded {
                 let lap = head & !(self.lap() - 1);
 
                 // Inspects the corresponding slot.
-                let index = unsafe { self.buffer.read_index(offset, Ordering::Acquire) };
+                let buffer_ref = unsafe { self.buffer.load(Ordering::Relaxed, unprotected()) };
+                let index = unsafe { buffer_ref.deref().read_index(offset, Ordering::Acquire) };
 
                 // If the the head and the stamp match, we may attempt to pop.
                 if head == index {
@@ -178,9 +190,10 @@ pub mod bounded {
                         .is_ok()
                     {
                         // Reads the value from the slot and update the stamp.
-                        let value = unsafe { self.buffer.read_value(index) };
+                        let value = unsafe { buffer_ref.deref().read_value(index) };
                         unsafe {
-                            self.buffer
+                            buffer_ref
+                                .deref()
                                 .write_index(index.wrapping_add(self.lap()), Ordering::Release)
                         };
                         return Some(ManuallyDrop::into_inner(value));
@@ -264,9 +277,16 @@ pub mod bounded {
                 };
 
                 unsafe {
-                    let mut value = self.buffer.read_unchecked(index);
+                    let buffer_ref = self.buffer.load(Ordering::Relaxed, unprotected());
+                    let mut value = buffer_ref.deref().read_unchecked(index);
                     ManuallyDrop::drop(&mut value);
                 }
+            }
+
+            unsafe {
+                let guard = unprotected();
+                let buffer_ref = self.buffer.load(Ordering::Relaxed, guard);
+                guard.defer_destroy(buffer_ref);
             }
         }
     }

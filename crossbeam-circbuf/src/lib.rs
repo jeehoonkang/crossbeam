@@ -5,8 +5,9 @@
 //! - bounded/unbounded SPSC (single-producer single-consumer)
 //! - bounded/unbounded SPMC (single-producer multiple-consumer)
 
-#![warn(missing_docs, missing_debug_implementations)]
+#![warn(missing_docs, missing_debug_implementations, rust_2018_idioms)]
 
+extern crate core;
 extern crate crossbeam_epoch as epoch;
 extern crate crossbeam_utils as utils;
 
