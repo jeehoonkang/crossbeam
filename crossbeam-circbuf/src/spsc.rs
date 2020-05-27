@@ -23,16 +23,16 @@
 /// }).join().unwrap();
 /// ```
 pub mod bounded {
-    use sp::internal;
+    use crate::sp_inner;
     pub use TryRecv;
 
     /// The sender of a bounded SPSC queue.
     #[derive(Debug)]
-    pub struct Sender<T>(internal::CircBuf<T>);
+    pub struct Sender<T>(sp_inner::CircBuf<T>);
 
     /// The receiver of a bounded SPSC queue.
     #[derive(Debug)]
-    pub struct Receiver<T>(internal::Receiver<T>);
+    pub struct Receiver<T>(sp_inner::Receiver<T>);
 
     unsafe impl<T> Send for Receiver<T> {}
 
@@ -49,7 +49,7 @@ pub mod bounded {
     /// let (tx, rx) = spsc::new::<u32>(16);
     /// ```
     pub fn new<T>(cap: usize) -> (Sender<T>, Receiver<T>) {
-        let circbuf = internal::CircBuf::new(cap);
+        let circbuf = sp_inner::CircBuf::new(cap);
         let receiver = circbuf.receiver();
         let sender = Sender { 0: circbuf };
         let receiver = Receiver { 0: receiver };
@@ -121,16 +121,16 @@ pub mod bounded {
 /// }).join().unwrap();
 /// ```
 pub mod unbounded {
-    use sp::internal;
+    use crate::sp_inner;
     pub use TryRecv;
 
     /// The sender of an unbounded SPSC queue.
     #[derive(Debug)]
-    pub struct Sender<T>(internal::DynamicCircBuf<T>);
+    pub struct Sender<T>(sp_inner::DynamicCircBuf<T>);
 
     /// The receiver of an unbounded SPSC queue.
     #[derive(Debug)]
-    pub struct Receiver<T>(internal::Receiver<T>);
+    pub struct Receiver<T>(sp_inner::Receiver<T>);
 
     unsafe impl<T> Send for Receiver<T> {}
 
@@ -144,7 +144,7 @@ pub mod unbounded {
     /// let (tx, rx) = spsc::new::<u32>();
     /// ```
     pub fn new<T>() -> (Sender<T>, Receiver<T>) {
-        let circbuf = internal::DynamicCircBuf::new();
+        let circbuf = sp_inner::DynamicCircBuf::new();
         let receiver = circbuf.receiver();
         let sender = Sender { 0: circbuf };
         let receiver = Receiver { 0: receiver };
@@ -165,7 +165,7 @@ pub mod unbounded {
     /// let (tx, rx) = spsc::with_min_capacity::<u32>(1000);
     /// ```
     pub fn with_min_capacity<T>(min_cap: usize) -> (Sender<T>, Receiver<T>) {
-        let circbuf = internal::DynamicCircBuf::with_min_capacity(min_cap);
+        let circbuf = sp_inner::DynamicCircBuf::with_min_capacity(min_cap);
         let receiver = circbuf.receiver();
         let sender = Sender { 0: circbuf };
         let receiver = Receiver { 0: receiver };

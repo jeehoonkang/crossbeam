@@ -24,16 +24,16 @@
 /// }).join().unwrap();
 /// ```
 pub mod bounded {
-    use super::super::internal;
+    use crate::sp_inner;
     pub use TryRecv;
 
     /// A bounded SPMC queue.
     #[derive(Debug)]
-    pub struct Queue<T>(internal::CircBuf<T>);
+    pub struct Queue<T>(sp_inner::CircBuf<T>);
 
     /// The receiver of a bounded SPMC queue.
     #[derive(Debug)]
-    pub struct Receiver<T>(internal::Receiver<T>);
+    pub struct Receiver<T>(sp_inner::Receiver<T>);
 
     impl<T> Queue<T> {
         /// Creates a bounded SPMC queue with the specified capacity.
@@ -49,7 +49,7 @@ pub mod bounded {
         /// ```
         pub fn new(cap: usize) -> Self {
             Queue {
-                0: internal::CircBuf::new(cap),
+                0: sp_inner::CircBuf::new(cap),
             }
         }
 
@@ -202,16 +202,16 @@ pub mod bounded {
 /// }).join().unwrap();
 /// ```
 pub mod unbounded {
-    use super::super::internal;
+    use crate::sp_inner;
     pub use TryRecv;
 
     /// an unbounded SPMC queue.
     #[derive(Debug)]
-    pub struct Queue<T>(internal::DynamicCircBuf<T>);
+    pub struct Queue<T>(sp_inner::DynamicCircBuf<T>);
 
     /// The receiver of an unbounded SPMC queue.
     #[derive(Debug)]
-    pub struct Receiver<T>(internal::Receiver<T>);
+    pub struct Receiver<T>(sp_inner::Receiver<T>);
 
     impl<T> Queue<T> {
         /// Creates an unbounded SPMC queue.
@@ -225,7 +225,7 @@ pub mod unbounded {
         /// ```
         pub fn new() -> Self {
             Queue {
-                0: internal::DynamicCircBuf::new(),
+                0: sp_inner::DynamicCircBuf::new(),
             }
         }
 
@@ -243,7 +243,7 @@ pub mod unbounded {
         /// ```
         pub fn with_min_capacity(min_cap: usize) -> Self {
             Queue {
-                0: internal::DynamicCircBuf::with_min_capacity(min_cap),
+                0: sp_inner::DynamicCircBuf::with_min_capacity(min_cap),
             }
         }
 
