@@ -190,7 +190,7 @@ pub mod bounded {
                         .is_ok()
                     {
                         // Reads the value from the slot and update the stamp.
-                        let value = unsafe { buffer_ref.deref().read_value(index) };
+                        let value = unsafe { buffer_ref.deref().read_unchecked(index) };
                         unsafe {
                             buffer_ref
                                 .deref()

@@ -5,7 +5,8 @@
 /// # Examples
 ///
 /// ```
-/// use crossbeam_circbuf::spmc::bounded::{Queue, Receiver, TryRecv};
+/// use crossbeam_circbuf::TryRecv;
+/// use crossbeam_circbuf::spmc::bounded::{Queue, Receiver};
 /// use std::thread;
 ///
 /// let c = Queue::<char>::new(16);
@@ -24,8 +25,7 @@
 /// }).join().unwrap();
 /// ```
 pub mod bounded {
-    use crate::sp_inner;
-    pub use TryRecv;
+    use crate::{sp_inner, TryRecv};
 
     /// A bounded SPMC queue.
     #[derive(Debug)]
@@ -80,7 +80,8 @@ pub mod bounded {
         /// # Examples
         ///
         /// ```
-        /// use crossbeam_circbuf::spmc::bounded::{Queue, Receiver, TryRecv};
+        /// use crossbeam_circbuf::TryRecv;
+        /// use crossbeam_circbuf::spmc::bounded::{Queue, Receiver};
         ///
         /// let c = Queue::<u32>::new(16);
         /// c.send(1).unwrap();
@@ -124,7 +125,8 @@ pub mod bounded {
         /// # Examples
         ///
         /// ```
-        /// use crossbeam_circbuf::spmc::bounded::{Queue, Receiver, TryRecv};
+        /// use crossbeam_circbuf::TryRecv;
+        /// use crossbeam_circbuf::spmc::bounded::{Queue, Receiver};
         ///
         /// let c = Queue::<u32>::new(16);
         /// c.send(1).unwrap();
@@ -151,7 +153,8 @@ pub mod bounded {
         /// # Examples
         ///
         /// ```
-        /// use crossbeam_circbuf::spmc::bounded::{Queue, Receiver, TryRecv};
+        /// use crossbeam_circbuf::TryRecv;
+        /// use crossbeam_circbuf::spmc::bounded::{Queue, Receiver};
         ///
         /// let c = Queue::<u32>::new(16);
         /// c.send(1).unwrap();
@@ -183,7 +186,8 @@ pub mod bounded {
 /// # Examples
 ///
 /// ```
-/// use crossbeam_circbuf::spmc::unbounded::{Queue, Receiver, TryRecv};
+/// use crossbeam_circbuf::TryRecv;
+/// use crossbeam_circbuf::spmc::unbounded::{Queue, Receiver};
 /// use std::thread;
 ///
 /// let c = Queue::<char>::new();
@@ -203,7 +207,7 @@ pub mod bounded {
 /// ```
 pub mod unbounded {
     use crate::sp_inner;
-    pub use TryRecv;
+    use TryRecv;
 
     /// an unbounded SPMC queue.
     #[derive(Debug)]
@@ -271,7 +275,8 @@ pub mod unbounded {
         /// # Examples
         ///
         /// ```
-        /// use crossbeam_circbuf::spmc::unbounded::{Queue, Receiver, TryRecv};
+        /// use crossbeam_circbuf::TryRecv;
+        /// use crossbeam_circbuf::spmc::unbounded::{Queue, Receiver};
         ///
         /// let c = Queue::<u32>::new();
         /// c.send(1);
@@ -321,7 +326,8 @@ pub mod unbounded {
         /// # Examples
         ///
         /// ```
-        /// use crossbeam_circbuf::spmc::unbounded::{Queue, Receiver, TryRecv};
+        /// use crossbeam_circbuf::TryRecv;
+        /// use crossbeam_circbuf::spmc::unbounded::{Queue, Receiver};
         ///
         /// let c = Queue::<u32>::new();
         /// c.send(1);
@@ -348,7 +354,8 @@ pub mod unbounded {
         /// # Examples
         ///
         /// ```
-        /// use crossbeam_circbuf::spmc::unbounded::{Queue, Receiver, TryRecv};
+        /// use crossbeam_circbuf::TryRecv;
+        /// use crossbeam_circbuf::spmc::unbounded::{Queue, Receiver};
         ///
         /// let c = Queue::<u32>::new();
         /// c.send(1);

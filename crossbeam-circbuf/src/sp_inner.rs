@@ -1,7 +1,3 @@
-//! Internal data structures used in single-producer queues.
-//!
-//! TODO: move
-//!
 //! Concurrent single-producer queues based on circular buffer.
 //!
 //! [`CircBuf`] is a circular buffer, which is basically a fixed-sized array that has two ends: tx
@@ -545,7 +541,7 @@ impl<T> DynamicCircBuf<T> {
         // Copies data from the old buffer to the new one.
         let mut i = rx;
         while i != tx {
-            ptr::copy_nonoverlapping(buffer.deref().at(i), new.at(i), 1);
+            ptr::copy_nonoverlapping(buffer.deref().get(i), new.get(i) as *mut _, 1);
             i = i.wrapping_add(1);
         }
 
@@ -632,8 +628,8 @@ impl<T> Receiver<T> {
 
         // Loads the value at the rx end of the buffer.
         let value = {
-            let guard = &epoch::pin();
-            let buffer = self.inner.buffer.load_consume(guard);
+            let guard = epoch::pin();
+            let buffer = self.inner.buffer.load_consume(&guard);
             match unsafe { buffer.deref().read(rx) } {
                 None => return TryRecv::Empty,
                 Some(value) => value,
@@ -698,8 +694,8 @@ impl<T> Receiver<T> {
 
         // Loads the values at [rx, rx + num).
         let values = {
-            let guard = &epoch::pin();
-            let buffer = unsafe { self.inner.buffer.load_consume(guard).deref() };
+            let guard = epoch::pin();
+            let buffer = unsafe { self.inner.buffer.load_consume(&guard).deref() };
             (0..num)
                 .map(|i| unsafe { buffer.read(rx.wrapping_add(i)) })
                 .collect::<Option<Vec<ManuallyDrop<T>>>>()
@@ -778,8 +774,8 @@ impl<T> Receiver<T> {
 
         // Loads the value at the rx end of the buffer.
         let value = {
-            let guard = &epoch::pin();
-            let buffer = self.inner.buffer.load_consume(guard);
+            let guard = epoch::pin();
+            let buffer = self.inner.buffer.load_consume(&guard);
             match buffer.deref().read(rx) {
                 None => return None,
                 Some(value) => value,

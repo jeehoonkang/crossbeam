@@ -4,6 +4,7 @@
 //!
 //! - bounded/unbounded SPSC (single-producer single-consumer)
 //! - bounded/unbounded SPMC (single-producer multiple-consumer)
+//! - bounded MPMC (multiple-producer multiple-consumer)
 
 #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms)]
 

@@ -88,24 +88,24 @@ impl<T> Buffer<T> {
     }
 
     /// Returns the capacity of the buffer.
-    pub fn cap(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.inner.len()
     }
 
     /// Returns a pointer to the slot at the specified `index`.
-    pub unsafe fn at(&self, index: usize) -> *mut Slot<T> {
+    pub fn get(&self, index: usize) -> *const Slot<T> {
         // `array.size()` is always a power of two.
-        self.inner.get_unchecked(index & (self.cap() - 1)) as *const _ as *mut _
+        unsafe { self.inner.get_unchecked(index & (self.len() - 1)).as_ptr() }
     }
 
     /// Reads a value from the specified `index`.
     ///
     /// Returns `Some(v)` if `v` is at `index`; or `None` if there's no valid value for `index`.
     pub unsafe fn read(&self, index: usize) -> Option<mem::ManuallyDrop<T>> {
-        let slot = self.at(index);
+        let slot = &*self.get(index);
 
         // Reads the index with `Acquire`.
-        let i = (*slot).index.load(Ordering::Acquire);
+        let i = slot.index.load(Ordering::Acquire);
 
         // If the index in the buffer mismatches with the queried index, there's no valid value.
         if index != i {
@@ -120,41 +120,32 @@ impl<T> Buffer<T> {
     ///
     /// Returns the value at `index` regardless or whether it's valid or not.
     pub unsafe fn read_unchecked(&self, index: usize) -> mem::ManuallyDrop<T> {
-        let slot = self.at(index);
+        let slot = &*self.get(index);
+        slot.data.get().read_volatile()
+    }
 
-        // Returns the value.
-        (*slot).data.get().read_volatile()
+    /// Reads the index from the specified slot.
+    pub unsafe fn read_index(&self, index: usize, ord: Ordering) -> usize {
+        let slot = &*self.get(index);
+        slot.index.load(ord)
     }
 
     /// Writes `value` into the specified `index`.
     pub unsafe fn write(&self, index: usize, value: T) {
-        let slot = self.at(index);
+        let slot = &*self.get(index);
 
         // Writes the value.
-        (*slot)
-            .data
+        slot.data
             .get()
             .write_volatile(mem::ManuallyDrop::new(value));
 
         // Writes the index with `Release`.
-        (*slot).index.store(index, Ordering::Release);
-    }
-
-    /// Reads the index from the specified slot.
-    pub unsafe fn read_index(&self, offset: usize, ord: Ordering) -> usize {
-        let slot = self.at(offset);
-        (*slot).index.load(ord)
+        slot.index.store(index, Ordering::Release);
     }
 
     /// Writes the specified `index` in the slot.
     pub unsafe fn write_index(&self, index: usize, ord: Ordering) {
-        let slot = self.at(index);
-        (*slot).index.store(index, ord);
-    }
-
-    /// Reads the value from the specified slot.
-    pub unsafe fn read_value(&self, offset: usize) -> mem::ManuallyDrop<T> {
-        let slot = self.at(offset);
-        (*slot).data.get().read_volatile()
+        let slot = &*self.get(index);
+        slot.index.store(index, ord);
     }
 }
